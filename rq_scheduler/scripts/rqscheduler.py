@@ -8,7 +8,7 @@ from redis import Redis
 from rq_scheduler.scheduler import Scheduler
 
 from rq_scheduler.utils import setup_loghandlers
-
+from redis.sentinel import Sentinel
 
 def main():
     parser = argparse.ArgumentParser(description='Runs RQ scheduler')
@@ -26,6 +26,9 @@ def main():
             queue (in seconds, can be floating-point for more precision).")
     parser.add_argument('--path', default='.', help='Specify the import path.')
     parser.add_argument('--pid', help='A filename to use for the PID file.', metavar='FILE')
+    parser.add_argument('--sentinel', default=False, help='Redis is configured with sentinel')
+    parser.add_argument('--timeout', default=None, help='Sentinel socket timeout')
+    parser.add_argument('--master', default='mymaster', help='Sentinel master name')
 
     args = parser.parse_args()
 
@@ -40,6 +43,10 @@ def main():
 
     if args.url is not None:
         connection = Redis.from_url(args.url)
+    elif args.sentinel:
+        instances = [(args.host, args.port)]
+        sn = Sentinel(instances, socket_timeout=args.timeout, password=args.password, db=args.db)
+        connection = sn.master_for(args.master)
     else:
         connection = Redis(args.host, args.port, args.db, args.password)
 
